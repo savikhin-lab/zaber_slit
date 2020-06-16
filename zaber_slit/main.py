@@ -1,6 +1,8 @@
 import os
 import sys
 import click
+from math import floor
+from scipy.interpolate import interp1d
 from .stepper import Stepper
 
 
@@ -62,11 +64,12 @@ def move(new_pos, wavelength):
         sys.exit(-1)
     stepper = Stepper(port)
     if wavelength:
-        try:
+        if WMAP.get(wavelength) is None:
+            xs, ys = separate_wmap()
+            interpfunc = interp1d(xs, ys, kind="cubic")
+            steps = floor(interpfunc(new_pos))
+        else:
             steps = WMAP[new_pos]
-        except KeyError:
-            print("Wavelengths are only available in 5nm steps on the interval [780, 850]nm.")
-            sys.exit(-1)
         stepper.move(220000)
         stepper.move(steps)
     else:
@@ -76,6 +79,15 @@ def move(new_pos, wavelength):
 
 def port_not_found():
     print("Port name not found. Please set the ZABERPORT environment variable.")
+
+
+def separate_wmap():
+    ks = []
+    vs = []
+    for k, v in WMAP.items():
+        ks.append(k)
+        vs.append(v)
+    return ks, vs
 
 
 cli.add_command(pos)
