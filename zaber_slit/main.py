@@ -34,8 +34,8 @@ def pos(loop):
 
 @click.command()
 @click.argument("new_pos", type=click.INT)
-@click.option("-w", "--wavelength", is_flag=True, help="Move to a specific wavelength.")
-def move(new_pos, wavelength):
+@click.option("-s", "--steps", "is_steps", is_flag=True, help="The position is specified in steps of the stepper motor rather than as a wavelength.")
+def move(new_pos, is_steps):
     """Send the stepper to a new position.
 
     The default units for position are steps of the stepper motor.
@@ -46,7 +46,9 @@ def move(new_pos, wavelength):
         port_not_found()
         sys.exit(-1)
     stepper = Stepper(port)
-    if wavelength:
+    if is_steps:
+        stepper.move(new_pos)
+    else:
         cal_file_path = os.environ["ZABERCAL"]
         if cal_file_path is None:
             print("ZABERCAL environment variable not found.")
@@ -56,8 +58,6 @@ def move(new_pos, wavelength):
         interp_steps = interp1d(cal_data[:, 0], cal_data[:, 1], kind="cubic")
         steps = floor(interp_steps(new_pos))
         stepper.move(steps)
-    else:
-        stepper.move(new_pos)
     return
 
 
