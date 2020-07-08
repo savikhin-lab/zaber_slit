@@ -1,28 +1,11 @@
 import os
 import sys
 import click
+import numpy as np
 from math import floor
+from pathlib import Path
 from scipy.interpolate import interp1d
 from .stepper import Stepper
-
-
-WMAP = {
-    780: 226996,
-    785: 227897,
-    790: 228712,
-    795: 230259,
-    800: 231322,
-    805: 232303,
-    810: 233216,
-    815: 234255,
-    820: 235493,
-    825: 236728,
-    830: 237581,
-    835: 238474,
-    840: 239750,
-    845: 240587,
-    850: 241487,
-}
 
 
 @click.group()
@@ -64,13 +47,14 @@ def move(new_pos, wavelength):
         sys.exit(-1)
     stepper = Stepper(port)
     if wavelength:
-        if WMAP.get(wavelength) is None:
-            xs, ys = separate_wmap()
-            interpfunc = interp1d(xs, ys, kind="cubic")
-            steps = floor(interpfunc(new_pos))
-        else:
-            steps = WMAP[new_pos]
-        stepper.move(220000)
+        cal_file_path = os.environ["ZABERCAL"]
+        if cal_file_path is None:
+            print("ZABERCAL environment variable not found.")
+            sys.exit(-1)
+        cal_file_path = Path(cal_file_path)
+        cal_data = np.loadtxt(cal_file_path, delimiter=",")
+        interp_steps = interp1d(cal_data[:, 0], cal_data[:, 1], kind="cubic")
+        steps = floor(interp_steps(new_pos))
         stepper.move(steps)
     else:
         stepper.move(new_pos)
@@ -79,15 +63,6 @@ def move(new_pos, wavelength):
 
 def port_not_found():
     print("Port name not found. Please set the ZABERPORT environment variable.")
-
-
-def separate_wmap():
-    ks = []
-    vs = []
-    for k, v in WMAP.items():
-        ks.append(k)
-        vs.append(v)
-    return ks, vs
 
 
 cli.add_command(pos)
